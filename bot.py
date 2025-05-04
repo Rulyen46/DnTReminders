@@ -56,16 +56,28 @@ message_variations = {
         "See what the guild is looking for in our Discord's Guild-Wanted channel (under Announcements and Getting Started).",
         "Help the guild grow! Check Discord Announcements and Getting Started sections for our Guild-Wanted list.",
         "Looking to donate? The Guild-Wanted channel in Discord shows what items we're currently seeking."
+    ],
+    "guildPerks": [
+        "New member benefits: 5k plat advance, free 30-slot bag, stat food/drink clicks (ask officers!), build guides on Discord, and PL/flag help!",
+        "Guild perks alert: Starter platinum, weight-reduction bag, free stat food (officers have clickies!), build advice, and group help - just ask!",
+        "Remember: We offer new members 5k plat, giant bag, stat boost food (ask online officers!), Discord guides, and PL/flag assistance!",
+        "Pro tip: Claim your 5000p advance, free bag , consumables (check with officers!), build resources, and group help!",
+        "Member benefits: Instant 5k plat, 30-slot bag, food/drink clicks (officers carry them!), Discord guides, and progression help!"
     ]
 }
 
 # Define which categories to use each hour (rotating pattern)
 hourly_categories = [
-    ['guildBank', 'bankLocations'],      # Hour 0, 5, 10, 15, 20
-    ['website', 'requestProcess'],       # Hour 1, 6, 11, 16, 21
-    ['guildNeeds', 'guildBank'],         # Hour 2, 7, 12, 17, 22
-    ['bankLocations', 'website'],        # Hour 3, 8, 13, 18, 23
-    ['requestProcess', 'guildNeeds'],    # Hour 4, 9, 14, 19
+    # 00:00, 05:00, 10:00, 15:00, 20:00
+    ['guildBank', 'bankLocations', 'guildPerks'],  
+    # 01:00, 06:00, 11:00, 16:00, 21:00 
+    ['website', 'requestProcess'],                 
+    # 02:00, 07:00, 12:00, 17:00, 22:00
+    ['guildNeeds', 'guildBank'],                   
+    # 03:00, 08:00, 13:00, 18:00, 23:00
+    ['bankLocations', 'website'],                  
+    # 04:00, 09:00, 14:00, 19:00
+    ['requestProcess', 'guildNeeds', 'guildPerks'] 
 ]
 
 def get_random_message(category):
@@ -122,27 +134,17 @@ def send_scheduled_messages():
 
 def schedule_next_run():
     """Schedule next message at exactly 1 hour ± variance from NOW."""
-    # Clear previous jobs to prevent stacking
     schedule.clear()
-    
-    # Calculate next run time with variance
     variance_seconds = random.randint(-int(VARIANCE_MINUTES * 60), int(VARIANCE_MINUTES * 60))
-    next_run = datetime.datetime.now() + datetime.timedelta(
-        seconds=3600 + variance_seconds  # 1 hour base + variance
-    )
-    
-    # Schedule at specific absolute time
+    next_run = datetime.datetime.now() + datetime.timedelta(seconds=3600 + variance_seconds)
     schedule.every().day.at(next_run.strftime("%H:%M:%S")).do(job_wrapper)
-    
-    # Print next scheduled time
-    print(f"Next message scheduled for: {next_run.strftime('%H:%M:%S %Z')}")
+    print(f"Next message at: {next_run.strftime('%H:%M:%S %Z')}")
 
 def job_wrapper():
     """Handle message sending and reschedule."""
     try:
         send_scheduled_messages()
     finally:
-        # Always schedule next run after completion
         schedule_next_run()
 
 def validate_token():

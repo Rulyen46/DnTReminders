@@ -45,86 +45,94 @@ message_variations = {
         "See what the guild is looking for in our Discord's Guild-Wanted channel (under Announcements and Getting Started).",
         "Help the guild grow! Check Discord Announcements and Getting Started sections for our Guild-Wanted list.",
         "Looking to donate? The Guild-Wanted channel in Discord shows what items we're currently seeking."
+    ],
+    "guildPerks": [
+        "New member benefits: 5k plat advance, free 30-slot bag, stat food/drink clicks (ask officers!), build guides on Discord, and PL/flag help!",
+        "Guild perks alert: Starter platinum, weight-reduction bag, free stat food (officers have clickies!), build advice, and group help - just ask!",
+        "Remember: We offer new members 5k plat, giant bag, stat boost food (ask online officers!), Discord guides, and PL/flag assistance!",
+        "Pro tip: Claim your 5000p advance, free bag , consumables (check with officers!), build resources, and group help!",
+        "Member benefits: Instant 5k plat, 30-slot bag, food/drink clicks (officers carry them!), Discord guides, and progression help!"
     ]
 }
 
-# Define which categories to use each hour (rotating pattern)
+# Updated hourly rotation schedule
 hourly_categories = [
-    ['guildBank', 'bankLocations'],      # Hour 0, 5, 10, 15, 20
-    ['website', 'requestProcess'],       # Hour 1, 6, 11, 16, 21
-    ['guildNeeds', 'guildBank'],         # Hour 2, 7, 12, 17, 22
-    ['bankLocations', 'website'],        # Hour 3, 8, 13, 18, 23
-    ['requestProcess', 'guildNeeds'],    # Hour 4, 9, 14, 19
+    ['guildBank', 'bankLocations', 'guildPerks'],   # 00,05,10,15,20
+    ['website', 'requestProcess'],                  # 01,06,11,16,21
+    ['guildNeeds', 'guildBank'],                    # 02,07,12,17,22
+    ['bankLocations', 'website'],                   # 03,08,13,18,23
+    ['requestProcess', 'guildNeeds', 'guildPerks']  # 04,09,14,19
 ]
 
 def get_random_message(category):
-    """Get a random message from the specified category."""
     return random.choice(message_variations[category])
 
-def simulate_typing(channel_id, duration=3):
-    """Simulate typing in the channel with timeout."""
-    typing_url = f"https://discord.com/api/v10/channels/{channel_id}/typing"
+def simulate_typing():
+    """Simulate typing indicator with error handling"""
     try:
-        response = requests.post(typing_url, headers={'Authorization': TOKEN}, timeout=2)
-        if response.status_code != 204:
-            print(f"Typing simulation warning: {response.status_code}")
+        requests.post(
+            f"https://discord.com/api/v10/channels/{CHANNEL_ID}/typing",
+            headers={'Authorization': TOKEN},
+            timeout=2
+        )
     except Exception as e:
-        print(f"Typing simulation error: {e}")
-    time.sleep(duration)
+        print(f"Typing simulation failed: {str(e)}")
+    time.sleep(2)  # Shortened for Lambda constraints
 
 def send_message(content):
-    """Send message to Discord channel."""
-    url = f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages"
+    """Send message to Discord with Lambda-optimized timeouts"""
     try:
         response = requests.post(
-            url,
-            headers={'Authorization': TOKEN, 'Content-Type': 'application/json'},
+            f"https://discord.com/api/v10/channels/{CHANNEL_ID}/messages",
+            headers={
+                'Authorization': TOKEN,
+                'Content-Type': 'application/json'
+            },
             json={'content': content},
-            timeout=5
+            timeout=5  # Important for Lambda timeout handling
         )
-        if response.status_code == 200:
-            print(f"Message sent: {content[:50]}...")
-        else:
-            print(f"Message send error: {response.status_code}")
+        if not response.ok:
+            print(f"Message failed: {response.status_code} {response.text}")
     except Exception as e:
-        print(f"Message send failed: {e}")
+        print(f"Message send error: {str(e)}")
 
-def send_scheduled_messages():
-    """Main message sending logic."""
+def process_messages():
+    """Main message handling logic"""
     try:
-        # Get current hour in UTC (adjust if needed)
-        now = datetime.datetime.now()
-        current_hour = now.hour
+        now = datetime.datetime.utcnow()  # Using UTC for cloud consistency
+        current_hour = now.hour % 24
+        hour_group = current_hour % 5
+        categories = hourly_categories[hour_group]
         
-        # For non-UTC timezones, adjust with:
-        # current_hour = (now.hour + TIMEZONE_OFFSET) % 24
-        
-        hour_index = current_hour % 5
-        categories = hourly_categories[hour_index]
-        
-        print(f"Processing hour {current_hour} (index {hour_index}) with categories: {categories}")
+        print(f"Processing hour {current_hour} (group {hour_group}): {categories}")
         
         for category in categories:
             message = get_random_message(category)
-            simulate_typing(CHANNEL_ID, duration=2)
+            simulate_typing()
             send_message(message)
-            time.sleep(random.uniform(0.5, 1.5))
+            time.sleep(random.uniform(0.5, 1.5))  # Natural interval
             
     except Exception as e:
-        print(f"Error in message sending: {e}")
+        print(f"Processing failed: {str(e)}")
         raise
 
 def lambda_handler(event, context):
-    """AWS Lambda entry point."""
+    """AWS Lambda entry point"""
     try:
-        # Add random delay for variance
+        # Apply random variance
         delay = random.randint(0, VARIANCE_SECONDS)
-        print(f"Applying variance delay: {delay} seconds")
+        print(f"Applying variance delay: {delay}s")
         time.sleep(delay)
         
-        send_scheduled_messages()
-        return {'statusCode': 200, 'body': 'Messages sent successfully'}
+        process_messages()
+        return {
+            'statusCode': 200,
+            'body': 'Messages processed successfully'
+        }
         
     except Exception as e:
-        print(f"Lambda handler error: {e}")
-        return {'statusCode': 500, 'body': 'Error processing messages'}
+        print(f"Critical error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': 'Failed to process messages'
+        }
