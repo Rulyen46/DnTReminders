@@ -69,13 +69,13 @@ message_variations = {
 # Define which categories to use each hour (rotating pattern)
 hourly_categories = [
     # 00:00, 05:00, 10:00, 15:00, 20:00
-    ['guildBank', 'bankLocations', 'guildPerks'],  
+    ['guildBank', 'requestProcess'],  
     # 01:00, 06:00, 11:00, 16:00, 21:00 
-    ['website', 'requestProcess'],                 
+    ['guildNeeds', 'guildPerks'],                 
     # 02:00, 07:00, 12:00, 17:00, 22:00
     ['guildNeeds', 'guildBank'],                   
     # 03:00, 08:00, 13:00, 18:00, 23:00
-    ['bankLocations', 'website'],                  
+    ['guildBank', 'guildPerks'],                  
     # 04:00, 09:00, 14:00, 19:00
     ['requestProcess', 'guildNeeds', 'guildPerks'] 
 ]
